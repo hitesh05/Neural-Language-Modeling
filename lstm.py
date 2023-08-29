@@ -7,23 +7,20 @@ from tqdm import tqdm
 from data import *
 import math
 
-class NNLM(nn.Module):
-    def __init__(self, vocab_size, context_size=5, h1=300, h2=300):
+class My_LSTM(nn.Module):
+    def __init__(self, vocab_size, embedding_matrix, h1=300, embedding_dim=300):
         super().__init__()
-        self.layer1 = nn.Linear(context_size * vocab_size, h1)
-        self.layer2 = nn.Linear(h1, h2)
-        self.layer3 = nn.Linear(h2, vocab_size)
-        self.relu = nn.ReLU()
-        
+        self.embedding = nn.Embedding(vocab_size, embedding_dim).from_pretrained(embedding_matrix)
+        self.lstm = nn.LSTM(embedding_dim, h1, num_layers=2, batch_first=True)
+        self.fc = nn.Linear(h1, vocab_size)
+        self.softmax = nn.Softmax(dim=1)
+                
     def forward(self, batch):
-        inputs = batch.view(batch.shape[0], -1)
-        x = self.layer1(inputs)
-        x = self.relu(x)
-        x = self.layer2(x)
-        x = self.relu(x)
-        x = self.layer3(x)
-        logits = self.relu(x) # check
-        return logits
+        x = self.embedding(batch)
+        x,_ = self.lstm(x)
+        x = self.fc(x)
+        x = self.softmax(x)
+        return x
     
     def train(self, train_dataset, dev_dataset, num_epochs=10, lr=0.01):
         loss_fn = nn.CrossEntropyLoss()

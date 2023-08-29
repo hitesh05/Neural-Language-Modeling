@@ -47,16 +47,15 @@ def make_split(sentences):
     # write test data to a file
     with open('data/test.txt','w') as f:
         f.writelines([s + '\n' for s in sentences[train_len+valid_len:]])
-
+        
 def get_embeddings(filename):
     def find_unk(token='unk'):
         with open(filename, 'r') as f:
             for line in tqdm(f, desc='getting unk embedding'):
                 if(line.strip().split()[0] == token):
                     e = line.strip().split()[1:]
-                    return tensor([float(x) for x in e])
-    unk_str = find_unk()
-    embeddings = defaultdict(lambda: unk_str)
+                    return tensor([float(x) for x in e.split()])
+    embeddings = defaultdict(lambda: find_unk())
     with open(filename, 'r') as f:
         for line in tqdm(f, desc='getting embeddings'):
             line = line.strip().split()
@@ -76,7 +75,9 @@ class Data(Dataset):
         self.vocab = vocab if vocab is not None else list()
         self.word2idx = dict()
         self.unk_token = '<unk>'
+        self.pad_token = '<pad>'
         self.embeddings_list = list()
+        self.max_len = -1
         
         with open(self.filepath, 'r') as f:
             for line in tqdm(f, desc='building vocab'):
@@ -85,16 +86,20 @@ class Data(Dataset):
                     word = word.lower()
                     words.append(word)
                     self.freq_dictionary[word] += 1
+                self.max_len = max(len(words), self.max_len)
                 if not vocab:
                     self.vocab.extend(words)
             if not vocab:
                 self.vocab = list(set(self.vocab))
                 for word in self.vocab:
-                    if self.freq_dictionary[word] <= self.frequency_cutoff:
+                    if self.freq_dictionary[word] <= self.freq_dictionary:
                         self.vocab.remove(word)
                 self.vocab.append(self.unk_token)
+                self.vocab.insert(0, self.pad_token)
             self.word2idx = {word:idx for idx, word in enumerate(self.vocab)}
-            for word in self.vocab:
+            for ind,word in enumerate(self.vocab):
+                if ind == 0:
+                    continue
                 self.embeddings_list.append(self.embeddings[word])
             self.embeddings_list.append(self.embeddings[self.unk_token])
             self.embeddings = torch.stack(self.embeddings_list)
@@ -103,7 +108,7 @@ class Data(Dataset):
             for line in tqdm(f, desc='building vocab'):
                 words = list()
                 for word in word_tokenize(line):
-                    words.extend(word.lower())
+                    words.append(word.lower())
                 indices = list()
                 for word in words:
                     if word in self.vocab:
@@ -111,15 +116,13 @@ class Data(Dataset):
                     else:
                         indices.append(self.word2idx[self.unk_token])
                 embeds = list()
-                for i in indices:
-                    embeds.append(self.embeddings[i])
-                
-                for i in range(len(embeds) - self.context_size):
-                    self.words.append(indices[i+self.context_size])
-                    self.context_for_words.append(torch.stack(embeds[i:i+self.context_size]))
+                ctx = torch.tensor(indices + [self.word2idx[self.pad_token]]*(self.max_len-len(indices)))
+                tgt = torch.tensor(indices[1:] + [self.word2idx[self.pad_token]]*(self.max_len-len(indices)+1))
+                self.context_for_words.append(ctx)
+                self.words.append(tgt)
                     
-        self.context_for_words = torch.stack(self.context_for_words)
-        self.words = torch.stack(self.words)
+        self.context_for_words = torch.stack(self.context_for_words).to(device)
+        self.words = torch.stack(self.words).to(device)
     
     def __getitem__(self, index):
         return (self.context_for_words[index], self.words[index])
