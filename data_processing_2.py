@@ -11,6 +11,7 @@ import sys
 from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
+from lstm import My_LSTM
 
 nltk.download('punkt')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -35,7 +36,7 @@ def load_text(filename):
 def make_split(sentences):
     random.shuffle(sentences)
     valid_len = 10000
-    test_len = 20000
+    test_len = 10000
     train_len = len(sentences) - valid_len - test_len
     
     # write train data to a file
@@ -147,3 +148,16 @@ if __name__ == '__main__':
     
     test_file = 'data/test.txt'
     test_dataset = Data(filepath=test_file, embeddings=embeddings, vocab=train_dataset.vocab)
+    test_data = DataLoader(test_dataset, batch_size=256, shuffle=True)
+    
+    learning_rates = [0.001,0.01,0.1]
+    dimensions = [50,100,200,300,400,500]
+    
+    with open('lstm.txt', 'w') as f:
+        for learning_rate in learning_rates:
+            for dimension in dimensions:
+                lm = My_LSTM(len(train_dataset.vocab), embedding_matrix=train_dataset.embeddings,h1=dimension).to(device)
+                lm.train(train_dataset, dev_dataset, lr=learning_rate)  
+                print("Learning rate is {} and hidden size is {}".format(learning_rate, dimension))
+                prp = lm.get_perplexity(test_data)
+                f.write("lr={}\ths={}\tprp={}\n".format(learning_rate, dimension, prp))

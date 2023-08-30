@@ -11,6 +11,7 @@ import sys
 from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
+from NNLM import NNLM
 
 nltk.download('punkt')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -35,7 +36,7 @@ def load_text(filename):
 def make_split(sentences):
     random.shuffle(sentences)
     valid_len = 10000
-    test_len = 20000
+    test_len = 10000
     train_len = len(sentences) - valid_len - test_len
     
     # write train data to a file
@@ -85,8 +86,9 @@ class Data(Dataset):
                     word = word.lower()
                     words.append(word)
                     self.freq_dictionary[word] += 1
-                if not vocab:
+                if not vocab: 
                     self.vocab.extend(words)
+            # for train set when no vocab provided
             if not vocab:
                 self.vocab = list(set(self.vocab))
                 for word in self.vocab:
@@ -119,7 +121,7 @@ class Data(Dataset):
                     self.context_for_words.append(torch.stack(embeds[i:i+self.context_size]))
                     
         self.context_for_words = torch.stack(self.context_for_words)
-        self.words = torch.stack(self.words)
+        self.words = torch.tensor(self.words)
     
     def __getitem__(self, index):
         return (self.context_for_words[index], self.words[index])
@@ -144,3 +146,16 @@ if __name__ == '__main__':
     
     test_file = 'data/test.txt'
     test_dataset = Data(filepath=test_file, embeddings=embeddings, vocab=train_dataset.vocab)
+    test_data = DataLoader(test_dataset, batch_size=256, shuffle=True)
+    
+    learning_rates = [0.001,0.01,0.1]
+    dimensions = [50,100,200,300,400,500]
+    
+    with open('ffn.txt', 'w') as f:
+        for learning_rate in learning_rates:
+            for dimension in dimensions:
+                lm = NNLM(len(train_dataset.vocab), h1=dimension, h2=dimension).to(device)
+                lm.train(train_dataset, dev_dataset, lr=learning_rate)  
+                print("Learning rate is {} and hidden size is {}".format(learning_rate, dimension))
+                prp = lm.get_perplexity(test_data)
+                f.write("lr={}\ths={}\tprp={}\n".format(learning_rate, dimension, prp))
