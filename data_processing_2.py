@@ -35,9 +35,9 @@ def load_text(filename):
 
 def make_split(sentences):
     random.shuffle(sentences)
-    valid_len = 10000
-    test_len = 10000
-    train_len = len(sentences) - valid_len - test_len
+    valid_len = 2000
+    test_len = 2000
+    train_len = 30000
     
     # write train data to a file
     with open('data/train.txt','w') as f:
@@ -47,7 +47,7 @@ def make_split(sentences):
         f.writelines([s + '\n' for s in sentences[train_len:train_len+valid_len]])
     # write test data to a file
     with open('data/test.txt','w') as f:
-        f.writelines([s + '\n' for s in sentences[train_len+valid_len:]])
+        f.writelines([s + '\n' for s in sentences[train_len+valid_len:train_len+valid_len+test_len]])
         
 def get_embeddings(filename):
     def find_unk(token='unk'):
@@ -55,8 +55,9 @@ def get_embeddings(filename):
             for line in tqdm(f, desc='getting unk embedding'):
                 if(line.strip().split()[0] == token):
                     e = line.strip().split()[1:]
-                    return tensor([float(x) for x in e.split()])
-    embeddings = defaultdict(lambda: find_unk())
+                    return tensor([float(x) for x in e])
+    unk_str = find_unk()
+    embeddings = defaultdict(lambda: unk_str)
     with open(filename, 'r') as f:
         for line in tqdm(f, desc='getting embeddings'):
             line = line.strip().split()
@@ -64,7 +65,7 @@ def get_embeddings(filename):
     return embeddings
 
 class Data(Dataset):
-    def __init__(self, filepath, embeddings, context=5, vocab=None, freq_cutoff=1):
+    def __init__(self, filepath, embeddings, context=5, vocab=None, freq_cutoff=5):
         self.filepath = filepath
         self.embeddings = embeddings
         self.frequency_cutoff = freq_cutoff
@@ -93,7 +94,7 @@ class Data(Dataset):
             if not vocab:
                 self.vocab = list(set(self.vocab))
                 for word in self.vocab:
-                    if self.freq_dictionary[word] <= self.freq_dictionary:
+                    if self.freq_dictionary[word] <= self.frequency_cutoff:
                         self.vocab.remove(word)
                 self.vocab.append(self.unk_token)
                 self.vocab.insert(0, self.pad_token)
@@ -116,20 +117,19 @@ class Data(Dataset):
                         indices.append(self.word2idx[word])
                     else:
                         indices.append(self.word2idx[self.unk_token])
-                embeds = list()
                 ctx = torch.tensor(indices + [self.word2idx[self.pad_token]]*(self.max_len-len(indices)))
                 tgt = torch.tensor(indices[1:] + [self.word2idx[self.pad_token]]*(self.max_len-len(indices)+1))
                 self.context_for_words.append(ctx)
                 self.words.append(tgt)
                     
-        self.context_for_words = torch.stack(self.context_for_words).to(device)
-        self.words = torch.stack(self.words).to(device)
+        self.context_for_words = torch.stack(self.context_for_words)
+        self.words = torch.stack(self.words)
     
     def __getitem__(self, index):
         return (self.context_for_words[index], self.words[index])
     
     def __len__(self):
-        return len(self.words)       
+        return len(self.words)             
         
 
 # change file paths when running on colab
@@ -138,7 +138,8 @@ if __name__ == '__main__':
     sentences=load_text(data_file)
     # print(len(sentences))
     make_split(sentences)
-    embeddings_file = '/media/hitesh/DATA/IIIT-H/4th_year/Anlp/glove_embeddings/glove.6B.300d.txt'
+    # embeddings_file = '/media/hitesh/DATA/IIIT-H/4th_year/Anlp/glove_embeddings/glove.6B.300d.txt'
+    embeddings_file = '/home2/hitesh.goel/Anlp/glove.6B.300d.txt'
     embeddings = get_embeddings(embeddings_file)
     train_file = 'data/train.txt'
     train_dataset = Data(filepath=train_file, embeddings=embeddings)
@@ -152,10 +153,12 @@ if __name__ == '__main__':
     
     learning_rates = [0.001,0.01,0.1]
     dimensions = [50,100,200,300,400,500]
-    
+    it = 0
     with open('lstm.txt', 'w') as f:
         for learning_rate in learning_rates:
             for dimension in dimensions:
+                print(f"iteration {it}\n")
+                it+=1
                 lm = My_LSTM(len(train_dataset.vocab), embedding_matrix=train_dataset.embeddings,h1=dimension).to(device)
                 lm.train(train_dataset, dev_dataset, lr=learning_rate)  
                 print("Learning rate is {} and hidden size is {}".format(learning_rate, dimension))

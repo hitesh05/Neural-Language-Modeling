@@ -7,20 +7,53 @@ from tqdm import tqdm
 from data import *
 import math
 
-class My_LSTM(nn.Module):
-    def __init__(self, vocab_size, embedding_matrix, h1=300, embedding_dim=300):
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
         super().__init__()
-        self.embedding = nn.Embedding(vocab_size, embedding_dim).from_pretrained(embedding_matrix)
-        self.lstm = nn.LSTM(embedding_dim, h1, num_layers=2, batch_first=True)
-        self.fc = nn.Linear(h1, vocab_size)
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-                
-    def forward(self, batch):
-        x = self.embedding(batch)
-        x,_ = self.lstm(x)
-        x = self.fc(x)
-        x = F.log_softmax(x, dim=2)
-        return x
+        self.dropout = nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, 1, d_model)
+        pe[:, 0, 0::2] = torch.sin(position * div_term)
+        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        """
+        Arguments:
+            x: Tensor, shape ``[seq_len, batch_size, embedding_dim]``
+        """
+        x = x + self.pe[:x.size(0)]
+        return self.dropout(x)
+    
+class TransformerDecoder(nn.Module):
+    def __init__(self, vocab_size, embedding_dim, num_layers, num_heads, max_seq_length):
+        super(TransformerDecoder, self).__init__()
+        self.d_model = embedding_dim
+        self.embedding = nn.Embedding(vocab_size, self.d_model)
+        self.positional_encoding = PositionalEncoding(self.d_model, max_len=max_seq_length)
+        self.transformer_layers = nn.ModuleList([
+            nn.TransformerDecoderLayer(d_model=self.d_model, nhead=num_heads)
+            for _ in range(num_layers)
+        ])
+        self.fc = nn.Linear(self.d_model, vocab_size)
+
+    def forward(self, input):
+        embedded = self.embedding(input) * math.sqrt(self.d_model)
+        
+        
+        ################NOTE###################
+        ### take care of dimensions while passing, possible mistake here ###
+        #####################################
+        embedded = self.positional_encoding(embedded)
+        
+        
+        x = embedded.permute(1, 0, 2)  # Adjust the dimensions for Transformer
+        for layer in self.transformer_layers:
+            x = layer(x)
+        output = self.fc(x)
+        return output
     
     def train(self, train_dataset, dev_dataset, num_epochs=10, lr=0.01):
         self.loss_fn = nn.CrossEntropyLoss()
