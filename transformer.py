@@ -28,38 +28,34 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
     
 class TransformerDecoder(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, num_layers, num_heads, max_seq_length):
+    def __init__(self, vocab_size, embedding_dim, num_layers, num_heads, max_seq_length, embedding_matrix):
         super(TransformerDecoder, self).__init__()
         self.d_model = embedding_dim
-        self.embedding = nn.Embedding(vocab_size, self.d_model)
+        self.embedding = nn.Embedding(vocab_size, self.d_model).from_pretrained(embedding_matrix)
         self.positional_encoding = PositionalEncoding(self.d_model, max_len=max_seq_length)
         self.transformer_layers = nn.ModuleList([
             nn.TransformerDecoderLayer(d_model=self.d_model, nhead=num_heads)
             for _ in range(num_layers)
         ])
         self.fc = nn.Linear(self.d_model, vocab_size)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
     def forward(self, input):
         embedded = self.embedding(input) * math.sqrt(self.d_model)
+        x = embedded.permute(1, 0, 2)
         
-        
-        ################NOTE###################
-        ### take care of dimensions while passing, possible mistake here ###
-        #####################################
-        embedded = self.positional_encoding(embedded)
-        
-        
-        x = embedded.permute(1, 0, 2)  # Adjust the dimensions for Transformer
+        x = self.positional_encoding(x)
         for layer in self.transformer_layers:
-            x = layer(x)
+            x = layer(x,x)
         output = self.fc(x)
         return output
     
     def train(self, train_dataset, dev_dataset, num_epochs=10, lr=0.01):
         self.loss_fn = nn.CrossEntropyLoss()
         optim = torch.optim.SGD(self.parameters(), lr=lr)
-        train_data = DataLoader(train_dataset, batch_size=256, shuffle=True)
-        dev_data = DataLoader(dev_dataset, batch_size=256, shuffle=True)
+        train_data = DataLoader(train_dataset, batch_size=2, shuffle=True)
+        dev_data = DataLoader(dev_dataset, batch_size=2, shuffle=True)
         
         for i in range(num_epochs):
             for batch in tqdm(train_data, desc="training batch"):

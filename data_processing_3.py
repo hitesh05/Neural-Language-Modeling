@@ -11,7 +11,7 @@ import sys
 from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
-from lstm import My_LSTM
+from transformer import TransformerDecoder
 
 nltk.download('punkt')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -151,16 +151,9 @@ if __name__ == '__main__':
     test_dataset = Data(filepath=test_file, embeddings=embeddings, vocab=train_dataset.vocab)
     test_data = DataLoader(test_dataset, batch_size=256, shuffle=True)
     
-    learning_rates = [0.001,0.01,0.1]
-    dimensions = [50,100,200,300,400,500]
-    it = 0
-    with open('lstm.txt', 'w') as f:
-        for learning_rate in learning_rates:
-            for dimension in dimensions:
-                print(f"iteration {it}\n")
-                it+=1
-                lm = My_LSTM(len(train_dataset.vocab), embedding_matrix=train_dataset.embeddings,h1=dimension).to(device)
-                lm.train(train_dataset, dev_dataset, lr=learning_rate)  
-                print("Learning rate is {} and hidden size is {}".format(learning_rate, dimension))
+
+    with open('transformer.txt', 'w') as f:
+                lm = TransformerDecoder(len(train_dataset.vocab),embedding_dim=300,num_layers=6,num_heads=6,max_seq_length=train_dataset.max_len, embedding_matrix=train_dataset.embeddings).to(device)
+                lm.train(train_dataset, dev_dataset)  
                 prp = lm.get_perplexity(test_data)
-                f.write("lr={}\ths={}\tprp={}\n".format(learning_rate, dimension, prp))
+                f.write("lr={}\tprp={}\n".format(0.01, prp))
