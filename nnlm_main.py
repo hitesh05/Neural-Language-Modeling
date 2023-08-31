@@ -11,7 +11,7 @@ import sys
 from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
-from NNLM import NNLM
+from nnlm import NNLM
 
 nltk.download('punkt')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
