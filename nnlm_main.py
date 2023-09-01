@@ -12,6 +12,7 @@ from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nnlm import NNLM
+import math
 
 nltk.download('punkt')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -35,9 +36,9 @@ def load_text(filename):
 
 def make_split(sentences):
     random.shuffle(sentences)
-    valid_len = 10000
-    test_len = 10000
-    train_len = len(sentences) - valid_len - test_len
+    valid_len = 8000
+    test_len = 8000
+    train_len = 30000
     
     # write train data to a file
     with open('data/train.txt','w') as f:
@@ -47,7 +48,7 @@ def make_split(sentences):
         f.writelines([s + '\n' for s in sentences[train_len:train_len+valid_len]])
     # write test data to a file
     with open('data/test.txt','w') as f:
-        f.writelines([s + '\n' for s in sentences[train_len+valid_len:]])
+        f.writelines([s + '\n' for s in sentences[train_len+valid_len:train_len+valid_len+test_len]])
 
 def get_embeddings(filename):
     def find_unk(token='unk'):
@@ -127,8 +128,50 @@ class Data(Dataset):
         return (self.context_for_words[index], self.words[index])
     
     def __len__(self):
-        return len(self.words)       
-        
+        return len(self.words) 
+    
+def get_perp_file(model, dataset, in_file, out_file):
+    loss_fn = nn.CrossEntropyLoss()
+    with open(in_file,'r') as f:
+        with open(out_file, 'w') as g:
+            for line in tqdm(f):
+                words = list()
+                for word in word_tokenize(line):
+                    words.append(word.lower())
+                indices = list()
+                for word in words:
+                    if word in dataset.vocab:
+                        indices.append(dataset.word2idx[word])
+                    else:
+                        indices.append(dataset.word2idx[dataset.unk_token])
+                embeds = list()
+                for i in indices:
+                    embeds.append(dataset.embeddings[i])
+                    
+                words = list()
+                contexts = list()
+                x = dataset.context_size
+                for i in range(len(embeds) - x):
+                    contexts.append(torch.stack(embeds[i:i+x]))
+                    words.append(indices[i+x])
+                
+                try:
+                    words = torch.tensor(words)
+                    contexts = torch.stack(contexts)
+                    words = words.to(device)
+                    contexts = contexts.to(device)
+                    outs = model(contexts)
+                    outs = outs.view(-1, outs.shape[-1])
+                    words = words.view(-1)
+                    loss = loss_fn(outs, words)
+                    loss = loss.item()
+                    prp = math.exp(loss)
+                    prp /= words.size(0)
+                    s = line[:-1] + '\t' + str(prp) + '\n'
+                    g.write(s)
+                except:
+                    g.write('\n')
+                            
 
 # change file paths when running on colab
 if __name__ == '__main__':
@@ -147,6 +190,17 @@ if __name__ == '__main__':
     test_file = 'data/test.txt'
     test_dataset = Data(filepath=test_file, embeddings=embeddings, vocab=train_dataset.vocab)
     test_data = DataLoader(test_dataset, batch_size=256, shuffle=True)
+    
+    # lm = NNLM(len(train_dataset.vocab), h1=500, h2=500).to(device)
+    # lm.train(train_dataset, dev_dataset, lr=0.1)
+    # torch.save(lm, 'nnlm.pth')
+    
+    # lm = torch.load('nnlm.pth')
+    # lm = lm.to(device)
+    # print('generating prp files')
+    # get_perp_file(lm, train_dataset,train_file,'2020115003-LM1-train-perplexity.txt')
+    # get_perp_file(lm, test_dataset,test_file,'2020115003-LM1-test-perplexity.txt')
+    
     
     learning_rates = [0.001,0.01,0.1]
     dimensions = [50,100,200,300,400,500]

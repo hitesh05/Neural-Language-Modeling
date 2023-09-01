@@ -29,8 +29,8 @@ class NNLM(nn.Module):
     def train(self, train_dataset, dev_dataset, num_epochs=10, lr=0.01):
         self.loss_fn = nn.CrossEntropyLoss()
         optim = torch.optim.SGD(self.parameters(), lr=lr)
-        train_data = DataLoader(train_dataset, batch_size=256, shuffle=True)
-        dev_data = DataLoader(dev_dataset, batch_size=256, shuffle=True)
+        train_data = DataLoader(train_dataset, batch_size=64, shuffle=True)
+        dev_data = DataLoader(dev_dataset, batch_size=64, shuffle=True)
         for i in range(num_epochs):
             for batch in tqdm(train_data, desc="training batch"):
                 optim.zero_grad()
@@ -66,6 +66,8 @@ class NNLM(nn.Module):
             words = words.to(self.device)
             outs = self.forward(contexts)
             loss = self.loss_fn(outs, words)
-            perp += math.exp(loss.item())
+            loss = loss.item()
+            prp = math.exp(loss)
+            perp += prp
             count += len(batch)
         return (perp/count)

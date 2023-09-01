@@ -12,6 +12,7 @@ from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
 from transformer import TransformerDecoder
+import math
 
 nltk.download('punkt')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -35,7 +36,7 @@ def load_text(filename):
 
 def make_split(sentences):
     random.shuffle(sentences)
-    valid_len = 2000
+    valid_len = 8000
     test_len = 8000
     train_len = 30000
     
@@ -129,7 +130,40 @@ class Data(Dataset):
         return (self.context_for_words[index], self.words[index])
     
     def __len__(self):
-        return len(self.words)             
+        return len(self.words)    
+    
+def get_perp_file(model, dataset, in_file, out_file):
+    loss_fn = nn.CrossEntropyLoss()
+    with open(in_file,'r') as f:
+        with open(out_file, 'w') as g:
+            for line in tqdm(f):
+                words = list()
+                for word in word_tokenize(line):
+                    words.append(word.lower())
+                indices = list()
+                for word in words:
+                    if word in dataset.vocab:
+                        indices.append(dataset.word2idx[word])
+                    else:
+                        indices.append(dataset.word2idx[dataset.unk_token])
+                words = []
+                contexts = []
+                ctx = torch.tensor(indices + [dataset.word2idx[dataset.pad_token]]*(dataset.max_len-len(indices)))
+                tgt = torch.tensor(indices[1:] + [dataset.word2idx[dataset.pad_token]]*(dataset.max_len-len(indices)+1))
+                words.append(tgt)
+                contexts.append(ctx)
+                words = torch.stack(tgt)
+                contexts = torch.stack(ctx)
+                words = words.to(device)
+                contexts = contexts.to(device)
+                outs = model(contexts)
+                outs = outs.view(-1, outs.shape[-1])
+                words = words.view(-1)
+                loss = loss_fn(outs, words)
+                loss = loss.item()
+                prp = math.exp(loss)
+                s = line[:-1] + '\t' + str(prp) + '\n'
+                g.write(s)
         
 
 # change file paths when running on colab
@@ -149,11 +183,17 @@ if __name__ == '__main__':
     
     test_file = 'data/test.txt'
     test_dataset = Data(filepath=test_file, embeddings=embeddings, vocab=train_dataset.vocab)
-    test_data = DataLoader(test_dataset, batch_size=256, shuffle=True)
+    test_data = DataLoader(test_dataset, batch_size=32, shuffle=True)
     
 
     with open('transformer.txt', 'w') as f:
-                lm = TransformerDecoder(len(train_dataset.vocab),embedding_dim=300,num_layers=6,num_heads=6,max_seq_length=train_dataset.max_len, embedding_matrix=train_dataset.embeddings).to(device)
-                lm.train(train_dataset, dev_dataset)  
-                prp = lm.get_perplexity(test_data)
-                f.write("lr={}\tprp={}\n".format(0.01, prp))
+        lm = TransformerDecoder(len(train_dataset.vocab),embedding_dim=300,num_layers=6,num_heads=6,max_seq_length=train_dataset.max_len, embedding_matrix=train_dataset.embeddings).to(device)
+        lm.train(train_dataset, dev_dataset)  
+        prp = lm.get_perplexity(test_data)
+        f.write("lr={}\tprp={}\n".format(0.01, prp))
+        torch.save(lm, 'transformer.pth')
+        lm = torch.load('transformer.pth')
+        lm = lm.to(device)
+        print('generating prp files')
+        get_perp_file(lm, train_dataset,train_file,'2020115003-LM3-train-perplexity.txt')
+        get_perp_file(lm, test_dataset,test_file,'2020115003-LM3-test-perplexity.txt')

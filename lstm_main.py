@@ -12,6 +12,7 @@ from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
 from lstm import My_LSTM
+import math
 
 nltk.download('punkt')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -35,7 +36,7 @@ def load_text(filename):
 
 def make_split(sentences):
     random.shuffle(sentences)
-    valid_len = 2000
+    valid_len = 8000
     test_len = 8000
     train_len = 30000
     
@@ -129,7 +130,43 @@ class Data(Dataset):
         return (self.context_for_words[index], self.words[index])
     
     def __len__(self):
-        return len(self.words)             
+        return len(self.words)  
+    
+def get_perp_file(model, dataset, in_file, out_file):
+    loss_fn = nn.CrossEntropyLoss()
+    with open(in_file,'r') as f:
+        with open(out_file, 'w') as g:
+            for line in tqdm(f):
+                words = list()
+                for word in word_tokenize(line):
+                    words.append(word.lower())
+                indices = list()
+                for word in words:
+                    if word in dataset.vocab:
+                        indices.append(dataset.word2idx[word])
+                    else:
+                        indices.append(dataset.word2idx[dataset.unk_token])
+                words = []
+                contexts = []
+                ctx = torch.tensor(indices + [dataset.word2idx[dataset.pad_token]]*(dataset.max_len-len(indices)))
+                tgt = torch.tensor(indices[1:] + [dataset.word2idx[dataset.pad_token]]*(dataset.max_len-len(indices)+1))
+                words.append(tgt)
+                contexts.append(ctx)
+                try:
+                    words = torch.stack(tgt)
+                    contexts = torch.stack(ctx)
+                    words = words.to(device)
+                    contexts = contexts.to(device)
+                    outs = model(contexts)
+                    outs = outs.view(-1, outs.shape[-1])
+                    words = words.view(-1)
+                    loss = loss_fn(outs, words)
+                    loss = loss.item()
+                    prp = math.exp(loss)
+                    s = line[:-1] + '\t' + str(prp) + '\n'
+                    g.write(s)
+                except:
+                    g.write('\n')           
         
 
 # change file paths when running on colab
@@ -149,18 +186,26 @@ if __name__ == '__main__':
     
     test_file = 'data/test.txt'
     test_dataset = Data(filepath=test_file, embeddings=embeddings, vocab=train_dataset.vocab)
-    test_data = DataLoader(test_dataset, batch_size=256, shuffle=True)
+    test_data = DataLoader(test_dataset, batch_size=64, shuffle=True)
     
-    learning_rates = [0.001,0.01,0.1]
-    dimensions = [50,100,200,300,400,500]
-    it = 0
-    with open('lstm.txt', 'w') as f:
-        for learning_rate in learning_rates:
-            for dimension in dimensions:
-                print(f"iteration {it}\n")
-                it+=1
-                lm = My_LSTM(len(train_dataset.vocab), embedding_matrix=train_dataset.embeddings,h1=dimension).to(device)
-                lm.train(train_dataset, dev_dataset, lr=learning_rate)  
-                print("Learning rate is {} and hidden size is {}".format(learning_rate, dimension))
-                prp = lm.get_perplexity(test_data)
-                f.write("lr={}\ths={}\tprp={}\n".format(learning_rate, dimension, prp))
+    lm = My_LSTM(len(train_dataset.vocab), embedding_matrix=train_dataset.embeddings,h1=300).to(device)
+    #lm.train(train_dataset, dev_dataset, lr=0.1) 
+    
+    #torch.save(lm, 'lstm.pth')
+    lm = torch.load('lstm.pth')
+    get_perp_file(lm, train_dataset, train_file, '2020115003-LM2-train-perplexity.txt')
+    get_perp_file(lm, test_dataset, test_file, '2020115003-LM2-test-perplexity.txt')
+    
+    # learning_rates = [0.001,0.01,0.1]
+    # dimensions = [50,100,200,300,400,500]
+    # it = 0
+    # with open('lstm.txt', 'w') as f:
+    #     for learning_rate in learning_rates:
+    #         for dimension in dimensions:
+    #             print(f"iteration {it}\n")
+    #             it+=1
+    #             lm = My_LSTM(len(train_dataset.vocab), embedding_matrix=train_dataset.embeddings,h1=dimension).to(device)
+    #             lm.train(train_dataset, dev_dataset, lr=learning_rate)  
+    #             print("Learning rate is {} and hidden size is {}".format(learning_rate, dimension))
+    #             prp = lm.get_perplexity(test_data)
+    #             f.write("lr={}\ths={}\tprp={}\n".format(learning_rate, dimension, prp))

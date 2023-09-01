@@ -69,6 +69,8 @@ class My_LSTM(nn.Module):
             outs = outs.view(-1, outs.shape[-1])
             words = words.view(-1)
             loss = self.loss_fn(outs, words)
-            perp += math.exp(loss.item())
+            loss = loss.item()
+            prp = math.exp(loss)
+            perp += prp
             count += len(batch)
         return (perp/count)
