@@ -16,7 +16,6 @@ class NNLM(nn.Module):
         self.relu = nn.ReLU()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
     def forward(self, batch):
         inputs = batch.view(batch.shape[0], -1)
         x = self.layer1(inputs)
@@ -24,7 +23,8 @@ class NNLM(nn.Module):
         x = self.layer2(x)
         x = self.relu(x)
         logits = self.layer3(x)
-        return logits
+        outs = F.log_softmax(logits, dim=1)
+        return outs
 
     def train(self, train_dataset, dev_dataset, num_epochs=10, lr=0.01):
         self.loss_fn = nn.CrossEntropyLoss()
@@ -65,6 +65,8 @@ class NNLM(nn.Module):
             contexts = contexts.to(self.device)
             words = words.to(self.device)
             outs = self.forward(contexts)
+            outs = outs.view(-1, outs.shape[-1])
+            words = words.view(-1)
             loss = self.loss_fn(outs, words)
             loss = loss.item()
             prp = math.exp(loss)

@@ -23,7 +23,7 @@ class My_LSTM(nn.Module):
         return x
     
     def train(self, train_dataset, dev_dataset, num_epochs=10, lr=0.01):
-        self.loss_fn = nn.CrossEntropyLoss()
+        self.loss_fn = nn.CrossEntropyLoss(ignore_index=0)
         optim = torch.optim.SGD(self.parameters(), lr=lr)
         train_data = DataLoader(train_dataset, batch_size=256, shuffle=True)
         dev_data = DataLoader(dev_dataset, batch_size=256, shuffle=True)

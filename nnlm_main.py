@@ -92,21 +92,18 @@ class Data(Dataset):
             # for train set when no vocab provided
             if not vocab:
                 self.vocab = list(set(self.vocab))
-                for word in self.vocab:
-                    if self.freq_dictionary[word] <= self.frequency_cutoff:
-                        self.vocab.remove(word)
                 self.vocab.append(self.unk_token)
             self.word2idx = {word:idx for idx, word in enumerate(self.vocab)}
             for word in self.vocab:
                 self.embeddings_list.append(self.embeddings[word])
-            self.embeddings_list.append(self.embeddings[self.unk_token])
+            # self.embeddings_list.append(self.embeddings[self.unk_token])
             self.embeddings = torch.stack(self.embeddings_list)
             
         with open(self.filepath, 'r') as f:
             for line in tqdm(f, desc='building vocab'):
                 words = list()
                 for word in word_tokenize(line):
-                    words.extend(word.lower())
+                    words.append(word.lower())
                 indices = list()
                 for word in words:
                     if word in self.vocab:
@@ -155,22 +152,18 @@ def get_perp_file(model, dataset, in_file, out_file):
                     contexts.append(torch.stack(embeds[i:i+x]))
                     words.append(indices[i+x])
                 
-                try:
-                    words = torch.tensor(words)
-                    contexts = torch.stack(contexts)
-                    words = words.to(device)
-                    contexts = contexts.to(device)
-                    outs = model(contexts)
-                    outs = outs.view(-1, outs.shape[-1])
-                    words = words.view(-1)
-                    loss = loss_fn(outs, words)
-                    loss = loss.item()
-                    prp = math.exp(loss)
-                    prp /= words.size(0)
-                    s = line[:-1] + '\t' + str(prp) + '\n'
-                    g.write(s)
-                except:
-                    g.write('\n')
+                words = torch.tensor(words)
+                contexts = torch.stack(contexts)
+                words = words.to(device)
+                contexts = contexts.to(device)
+                outs = model(contexts)
+                outs = outs.view(-1, outs.shape[-1])
+                words = words.view(-1)
+                loss = loss_fn(outs, words)
+                loss = loss.item()
+                prp = math.exp(loss)
+                s = line[:-1] + '\t' + str(prp) + '\n'
+                g.write(s)
                             
 
 # change file paths when running on colab
@@ -202,8 +195,8 @@ if __name__ == '__main__':
     # get_perp_file(lm, test_dataset,test_file,'2020115003-LM1-test-perplexity.txt')
     
     
-    learning_rates = [0.001,0.01,0.1]
-    dimensions = [50,100,200,300,400,500]
+    learning_rates = [0.5,0.1,0.05]
+    dimensions = [50,100,200,300,500, 750]
     
     with open('ffn.txt', 'w') as f:
         for learning_rate in learning_rates:
@@ -212,4 +205,4 @@ if __name__ == '__main__':
                 lm.train(train_dataset, dev_dataset, lr=learning_rate)  
                 print("Learning rate is {} and hidden size is {}".format(learning_rate, dimension))
                 prp = lm.get_perplexity(test_data)
-                f.write("lr={}\ths={}\tprp={}\n".format(learning_rate, dimension, prp))
+                f.write("lr={}-hs={}:\t{}\n".format(learning_rate, dimension, prp))

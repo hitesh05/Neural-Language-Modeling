@@ -66,7 +66,7 @@ def get_embeddings(filename):
     return embeddings
 
 class Data(Dataset):
-    def __init__(self, filepath, embeddings, context=5, vocab=None, freq_cutoff=5):
+    def __init__(self, filepath, embeddings, context=5, vocab=None, freq_cutoff=1):
         self.filepath = filepath
         self.embeddings = embeddings
         self.frequency_cutoff = freq_cutoff
@@ -95,7 +95,7 @@ class Data(Dataset):
             if not vocab:
                 self.vocab = list(set(self.vocab))
                 for word in self.vocab:
-                    if self.freq_dictionary[word] <= self.frequency_cutoff:
+                    if self.freq_dictionary[word] < self.frequency_cutoff:
                         self.vocab.remove(word)
                 self.vocab.append(self.unk_token)
                 self.vocab.insert(0, self.pad_token)
@@ -152,8 +152,8 @@ def get_perp_file(model, dataset, in_file, out_file):
                 tgt = torch.tensor(indices[1:] + [dataset.word2idx[dataset.pad_token]]*(dataset.max_len-len(indices)+1))
                 words.append(tgt)
                 contexts.append(ctx)
-                words = torch.stack(tgt)
-                contexts = torch.stack(ctx)
+                words = torch.stack(words)
+                contexts = torch.stack(contexts)
                 words = words.to(device)
                 contexts = contexts.to(device)
                 outs = model(contexts)
