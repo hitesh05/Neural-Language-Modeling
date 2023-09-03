@@ -36,6 +36,7 @@ The model was tuned over learning rates and hidden sizes.
 Outputs are contained in the file: *ffn.txt*
 
 *Graphs and visualisations:*
+
 ![prp with lr-0.05](graphs/ffn_analysis/perp0.05.png)
 
 ![prp with lr-0.1](graphs/ffn_analysis/perp0.1.png)
