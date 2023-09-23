@@ -11,7 +11,7 @@ import sys
 from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
-from lstm import My_LSTM
+from transformer import TransformerDecoder
 import math
 
 nltk.download('punkt')
@@ -130,10 +130,10 @@ class Data(Dataset):
         return (self.context_for_words[index], self.words[index])
     
     def __len__(self):
-        return len(self.words)  
+        return len(self.words)    
     
 def get_perp_file(model, dataset, in_file, out_file):
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss(ignore_index=0)
     with open(in_file,'r') as f:
         with open(out_file, 'w') as g:
             for line in tqdm(f):
@@ -163,7 +163,7 @@ def get_perp_file(model, dataset, in_file, out_file):
                 loss = loss.item()
                 prp = math.exp(loss)
                 s = line[:-1] + '\t' + str(prp) + '\n'
-                g.write(s)          
+                g.write(s)
         
 
 # change file paths when running on colab
@@ -183,26 +183,16 @@ if __name__ == '__main__':
     
     test_file = 'data/test.txt'
     test_dataset = Data(filepath=test_file, embeddings=embeddings, vocab=train_dataset.vocab)
-    test_data = DataLoader(test_dataset, batch_size=64, shuffle=True)
+    test_data = DataLoader(test_dataset, batch_size=32, shuffle=True)
     
-    lm = My_LSTM(len(train_dataset.vocab), embedding_matrix=train_dataset.embeddings,h1=300).to(device)
-    lm.train(train_dataset, dev_dataset, lr=0.1) 
-    
-    torch.save(lm, 'lstm.pth')
-    lm = torch.load('lstm.pth')
-    get_perp_file(lm, train_dataset, train_file, '2020115003-LM2-train-perplexity.txt')
-    get_perp_file(lm, test_dataset, test_file, '2020115003-LM2-test-perplexity.txt')
-    
-    # learning_rates = [0.001,0.01,0.1]
-    # dimensions = [50,100,200,300,400,500]
-    # it = 0
-    # with open('lstm.txt', 'w') as f:
-    #     for learning_rate in learning_rates:
-    #         for dimension in dimensions:
-    #             print(f"iteration {it}\n")
-    #             it+=1
-    #             lm = My_LSTM(len(train_dataset.vocab), embedding_matrix=train_dataset.embeddings,h1=dimension).to(device)
-    #             lm.train(train_dataset, dev_dataset, lr=learning_rate)  
-    #             print("Learning rate is {} and hidden size is {}".format(learning_rate, dimension))
-    #             prp = lm.get_perplexity(test_data)
-    #             f.write("lr={}\ths={}\tprp={}\n".format(learning_rate, dimension, prp))
+
+    with open('transformer.txt', 'w') as f:
+        lm = TransformerDecoder(len(train_dataset.vocab),embedding_dim=300,num_layers=6,num_heads=6,max_seq_length=train_dataset.max_len, embedding_matrix=train_dataset.embeddings).to(device)
+        # lm.train(train_dataset, dev_dataset)  
+        # prp = lm.get_perplexity(test_data)
+        # f.write("lr={}\tprp={}\n".format(0.01, prp))
+        # torch.save(lm, 'transformer.pth')
+        lm = torch.load('transformer.pth')
+        print('generating prp files')
+        get_perp_file(lm, train_dataset,train_file,'2020115003-LM3-train-perplexity.txt')
+        get_perp_file(lm, test_dataset,test_file,'2020115003-LM3-test-perplexity.txt')

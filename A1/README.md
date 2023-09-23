@@ -26,9 +26,9 @@ The model is available on OneDrive:
 ### Perplexities
 The perplexity files are uploaded on OneDrive:
 
-[Test_file](https://iiitaphyd-my.sharepoint.com/:t:/g/personal/hitesh_goel_research_iiit_ac_in/Ec2tO5VrxQpIlyIZKMFjPBsB1YpA3rpisaJiSb310jjv3A?e=uBaLJ7)
+[Test_file](https://iiitaphyd-my.sharepoint.com/:f:/g/personal/hitesh_goel_research_iiit_ac_in/EiLYDhAfZVBOovRKmgZ5liwBDwoQUUoes-r7wiE9WyuZiA?e=qyWdbF)
 
-[Train_file](https://iiitaphyd-my.sharepoint.com/:t:/g/personal/hitesh_goel_research_iiit_ac_in/EVqqL3tXFitJq5DtRoV67PQB6A0J1AyY0Sbiqo5qMF8bSQ?e=eT9mmC)
+[Train_file](https://iiitaphyd-my.sharepoint.com/:f:/g/personal/hitesh_goel_research_iiit_ac_in/EiLYDhAfZVBOovRKmgZ5liwBDwoQUUoes-r7wiE9WyuZiA?e=qyWdbF)
 
 ### Hyperparameter finetuning (bonus)
 The model was tuned over learning rates and hidden sizes.
@@ -71,9 +71,9 @@ The model is available on OneDrive:
 ### Perplexities
 The perplexity files are uploaded on OneDrive:
 
-[Test_file](https://iiitaphyd-my.sharepoint.com/:t:/g/personal/hitesh_goel_research_iiit_ac_in/EVqqL3tXFitJq5DtRoV67PQB6A0J1AyY0Sbiqo5qMF8bSQ?e=hPwOuT)
+[Test_file](https://iiitaphyd-my.sharepoint.com/:f:/g/personal/hitesh_goel_research_iiit_ac_in/EiLYDhAfZVBOovRKmgZ5liwBDwoQUUoes-r7wiE9WyuZiA?e=qyWdbF)
 
-[Train_file](https://iiitaphyd-my.sharepoint.com/:t:/g/personal/hitesh_goel_research_iiit_ac_in/Ed1-yMQBgklDgmFOw_j4Ln4BgCyzUDhUz0rrT3ScvMmYmw?e=DpHM8Y)
+[Train_file](https://iiitaphyd-my.sharepoint.com/:f:/g/personal/hitesh_goel_research_iiit_ac_in/EiLYDhAfZVBOovRKmgZ5liwBDwoQUUoes-r7wiE9WyuZiA?e=qyWdbF)
 
 
 ## Part 3: TRANSFORMER
@@ -102,9 +102,9 @@ The model is available on OneDrive:
 ### Perplexities
 The perplexity files are uploaded on OneDrive:
 
-[Test_file](https://iiitaphyd-my.sharepoint.com/:t:/g/personal/hitesh_goel_research_iiit_ac_in/EeKFUuaVAQpKofgHVBlEanEBR8LMgECRV8GMFkPH_RHmzg?e=HC6mLi)
+[Test_file](https://iiitaphyd-my.sharepoint.com/:f:/g/personal/hitesh_goel_research_iiit_ac_in/EiLYDhAfZVBOovRKmgZ5liwBDwoQUUoes-r7wiE9WyuZiA?e=qyWdbF)
 
-[Train_file](https://iiitaphyd-my.sharepoint.com/:t:/g/personal/hitesh_goel_research_iiit_ac_in/ESnab_3FrddFl-qpiVnao8sB4wjQUQc7FSFMYjjeS1zXFQ?e=Qfygyj)
+[Train_file](https://iiitaphyd-my.sharepoint.com/:f:/g/personal/hitesh_goel_research_iiit_ac_in/EiLYDhAfZVBOovRKmgZ5liwBDwoQUUoes-r7wiE9WyuZiA?e=qyWdbF)
 
 ### Analysis and Visualistions
 As expected, LSTM outperforms a simple FFN model, but a transformer is superior to an LSTM model which is also indicated by the lower perplexity scores of the model. 

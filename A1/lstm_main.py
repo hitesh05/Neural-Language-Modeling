@@ -11,7 +11,7 @@ import sys
 from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
-from nnlm import NNLM
+from lstm import My_LSTM
 import math
 
 nltk.download('punkt')
@@ -49,7 +49,7 @@ def make_split(sentences):
     # write test data to a file
     with open('data/test.txt','w') as f:
         f.writelines([s + '\n' for s in sentences[train_len+valid_len:train_len+valid_len+test_len]])
-
+        
 def get_embeddings(filename):
     def find_unk(token='unk'):
         with open(filename, 'r') as f:
@@ -78,7 +78,9 @@ class Data(Dataset):
         self.vocab = vocab if vocab is not None else list()
         self.word2idx = dict()
         self.unk_token = '<unk>'
+        self.pad_token = '<pad>'
         self.embeddings_list = list()
+        self.max_len = -1
         
         with open(self.filepath, 'r') as f:
             for line in tqdm(f, desc='building vocab'):
@@ -87,16 +89,20 @@ class Data(Dataset):
                     word = word.lower()
                     words.append(word)
                     self.freq_dictionary[word] += 1
-                if not vocab: 
+                # maintain max_len to be able to pad sents
+                self.max_len = max(len(words), self.max_len)
+                if not vocab:
                     self.vocab.extend(words)
-            # for train set when no vocab provided
             if not vocab:
                 self.vocab = list(set(self.vocab))
                 self.vocab.append(self.unk_token)
+                self.vocab.insert(0, self.pad_token)
             self.word2idx = {word:idx for idx, word in enumerate(self.vocab)}
-            for word in self.vocab:
+            for ind,word in enumerate(self.vocab):
+                if ind == 0:
+                    continue
                 self.embeddings_list.append(self.embeddings[word])
-            # self.embeddings_list.append(self.embeddings[self.unk_token])
+            self.embeddings_list.append(self.embeddings[self.unk_token])
             self.embeddings = torch.stack(self.embeddings_list)
             
         with open(self.filepath, 'r') as f:
@@ -110,25 +116,22 @@ class Data(Dataset):
                         indices.append(self.word2idx[word])
                     else:
                         indices.append(self.word2idx[self.unk_token])
-                embeds = list()
-                for i in indices:
-                    embeds.append(self.embeddings[i])
-                
-                for i in range(len(embeds) - self.context_size):
-                    self.words.append(indices[i+self.context_size])
-                    self.context_for_words.append(torch.stack(embeds[i:i+self.context_size]))
+                ctx = torch.tensor(indices + [self.word2idx[self.pad_token]]*(self.max_len-len(indices)))
+                tgt = torch.tensor(indices[1:] + [self.word2idx[self.pad_token]]*(self.max_len-len(indices)+1))
+                self.context_for_words.append(ctx)
+                self.words.append(tgt)
                     
         self.context_for_words = torch.stack(self.context_for_words)
-        self.words = torch.tensor(self.words)
+        self.words = torch.stack(self.words)
     
     def __getitem__(self, index):
         return (self.context_for_words[index], self.words[index])
     
     def __len__(self):
-        return len(self.words) 
+        return len(self.words)  
     
 def get_perp_file(model, dataset, in_file, out_file):
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss(ignore_index=0)
     with open(in_file,'r') as f:
         with open(out_file, 'w') as g:
             for line in tqdm(f):
@@ -141,18 +144,13 @@ def get_perp_file(model, dataset, in_file, out_file):
                         indices.append(dataset.word2idx[word])
                     else:
                         indices.append(dataset.word2idx[dataset.unk_token])
-                embeds = list()
-                for i in indices:
-                    embeds.append(dataset.embeddings[i])
-                    
-                words = list()
-                contexts = list()
-                x = dataset.context_size
-                for i in range(len(embeds) - x):
-                    contexts.append(torch.stack(embeds[i:i+x]))
-                    words.append(indices[i+x])
-                
-                words = torch.tensor(words)
+                words = []
+                contexts = []
+                ctx = torch.tensor(indices + [dataset.word2idx[dataset.pad_token]]*(dataset.max_len-len(indices)))
+                tgt = torch.tensor(indices[1:] + [dataset.word2idx[dataset.pad_token]]*(dataset.max_len-len(indices)+1))
+                words.append(tgt)
+                contexts.append(ctx)
+                words = torch.stack(words)
                 contexts = torch.stack(contexts)
                 words = words.to(device)
                 contexts = contexts.to(device)
@@ -163,8 +161,8 @@ def get_perp_file(model, dataset, in_file, out_file):
                 loss = loss.item()
                 prp = math.exp(loss)
                 s = line[:-1] + '\t' + str(prp) + '\n'
-                g.write(s)
-                            
+                g.write(s)          
+        
 
 # change file paths when running on colab
 if __name__ == '__main__':
@@ -172,7 +170,8 @@ if __name__ == '__main__':
     sentences=load_text(data_file)
     # print(len(sentences))
     make_split(sentences)
-    embeddings_file = '/media/hitesh/DATA/IIIT-H/4th_year/Anlp/glove_embeddings/glove.6B.300d.txt'
+    # embeddings_file = '/media/hitesh/DATA/IIIT-H/4th_year/Anlp/glove_embeddings/glove.6B.300d.txt'
+    embeddings_file = '/home2/hitesh.goel/Anlp/glove.6B.300d.txt'
     embeddings = get_embeddings(embeddings_file)
     train_file = 'data/train.txt'
     train_dataset = Data(filepath=train_file, embeddings=embeddings)
@@ -182,27 +181,26 @@ if __name__ == '__main__':
     
     test_file = 'data/test.txt'
     test_dataset = Data(filepath=test_file, embeddings=embeddings, vocab=train_dataset.vocab)
-    test_data = DataLoader(test_dataset, batch_size=256, shuffle=True)
+    test_data = DataLoader(test_dataset, batch_size=64, shuffle=True)
     
-    # lm = NNLM(len(train_dataset.vocab), h1=500, h2=500).to(device)
-    # lm.train(train_dataset, dev_dataset, lr=0.1)
-    # torch.save(lm, 'nnlm.pth')
+    lm = My_LSTM(len(train_dataset.vocab), embedding_matrix=train_dataset.embeddings,h1=300).to(device)
+    lm.train(train_dataset, dev_dataset, lr=0.1) 
     
-    # lm = torch.load('nnlm.pth')
-    # lm = lm.to(device)
-    # print('generating prp files')
-    # get_perp_file(lm, train_dataset,train_file,'2020115003-LM1-train-perplexity.txt')
-    # get_perp_file(lm, test_dataset,test_file,'2020115003-LM1-test-perplexity.txt')
+    torch.save(lm, 'lstm.pth')
+    lm = torch.load('lstm.pth')
+    get_perp_file(lm, train_dataset, train_file, '2020115003-LM2-train-perplexity.txt')
+    get_perp_file(lm, test_dataset, test_file, '2020115003-LM2-test-perplexity.txt')
     
-    
-    learning_rates = [0.5,0.1,0.05]
-    dimensions = [50,100,200,300,500, 750]
-    
-    with open('ffn.txt', 'w') as f:
-        for learning_rate in learning_rates:
-            for dimension in dimensions:
-                lm = NNLM(len(train_dataset.vocab), h1=dimension, h2=dimension).to(device)
-                lm.train(train_dataset, dev_dataset, lr=learning_rate)  
-                print("Learning rate is {} and hidden size is {}".format(learning_rate, dimension))
-                prp = lm.get_perplexity(test_data)
-                f.write("lr={}-hs={}:\t{}\n".format(learning_rate, dimension, prp))
+    # learning_rates = [0.001,0.01,0.1]
+    # dimensions = [50,100,200,300,400,500]
+    # it = 0
+    # with open('lstm.txt', 'w') as f:
+    #     for learning_rate in learning_rates:
+    #         for dimension in dimensions:
+    #             print(f"iteration {it}\n")
+    #             it+=1
+    #             lm = My_LSTM(len(train_dataset.vocab), embedding_matrix=train_dataset.embeddings,h1=dimension).to(device)
+    #             lm.train(train_dataset, dev_dataset, lr=learning_rate)  
+    #             print("Learning rate is {} and hidden size is {}".format(learning_rate, dimension))
+    #             prp = lm.get_perplexity(test_data)
+    #             f.write("lr={}\ths={}\tprp={}\n".format(learning_rate, dimension, prp))
