@@ -1,10 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch import tensor
-from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
-import math
 
 class Elmo(nn.Module):
     def __init__(self, vocabulary, embedding_matrix, hsize=300):
@@ -53,6 +49,13 @@ class Elmo_classifier(nn.Module):
         # params for the weights (weighted mean of the layers)
         self.params = torch.rand(2)
         
+        ## experiments with weights
+        # self.params = [0.5,0.5]
+        # self.params = [0,1]
+        # self.params = [1,0]
+        # self.params = [0.25, 0.75]
+        # self.params = torch.tensor(self.params)
+        
         # lstm through which the embeddings obtained from elmo are passed
         self.lstm = nn.LSTM(2 * self.hidden_size, self.hidden_size)
         
@@ -66,6 +69,7 @@ class Elmo_classifier(nn.Module):
         w1, w2 = self.elmo(x_f, x_b)
         
         weights = self.softmax(self.params)
+        
         # weighted mean of pretrained embeds and 2 contextualised embeds (from the 2 layers of the lstm)
         w = weights[0]*w1 + weights[1]*w2
         

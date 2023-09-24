@@ -1,27 +1,18 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import tensor
 from torchtext import vocab
 from torch.utils.data import Dataset, DataLoader
-import os
-import random
-import regex as re
-from collections import defaultdict
-import sys
 from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
-import math
 import pandas as pd
-from elmo import Elmo
 from elmo_finetune import Elmo_classifier
 import sklearn 
 from sklearn.metrics import f1_score
 from sklearn.metrics import multilabel_confusion_matrix
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 class ProcessDataset():
     def __init__(self, filepath, min_freq=1):
         self.specials = ['<UNK>', '<PAD>']
@@ -132,7 +123,7 @@ cls_dataset_test = ClassificationDataset(preprocessed_data.vocab, "elmo_data/tes
 # elmo_dataset_val = ElmoDataset(preprocessed_data.vocab, 'elmo_data/train.csv')
 embedding_matrix = get_embeddings(preprocessed_data.vocab)
 
-mdl = Elmo_classifier('model_check.pth', preprocessed_data.vocab, embedding_matrix).to(device)
+mdl = Elmo_classifier('elmo_pretrained.pth', preprocessed_data.vocab, embedding_matrix).to(device)
 # train_loader = DataLoader(cls_dataset, batch_size=32)
 pad_idx = preprocessed_data.vocab['<PAD>']
 loss_fn = nn.CrossEntropyLoss()
@@ -158,6 +149,10 @@ for epoch in range(num_epochs):
     print(f"Average loss for epoch {epoch}: {avg_loss}")
 
 torch.save(mdl.state_dict(), 'elmo_finetuned.pth')
+# torch.save(mdl.state_dict(), 'elmo_finetuned1.pth')
+# torch.save(mdl.state_dict(), 'elmo_finetuned2.pth')
+# torch.save(mdl.state_dict(), 'elmo_finetuned3.pth')
+# torch.save(mdl.state_dict(), 'elmo_finetuned4.pth')
 
 # Test the model
 def accuracy(dataset):

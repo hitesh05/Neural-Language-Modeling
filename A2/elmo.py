@@ -1,10 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch import tensor
-from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
-import math
 
 class Elmo(nn.Module):
     def __init__(self, vocabulary, embedding_matrix, hsize=300):

@@ -1,18 +1,11 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import tensor
 from torchtext import vocab
 from torch.utils.data import Dataset, DataLoader
-import os
-import random
-import regex as re
-from collections import defaultdict
-import sys
 from tqdm import tqdm
 import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
-import math
 import pandas as pd
 from elmo import Elmo
 from elmo_finetune import Elmo_classifier
