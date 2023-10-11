@@ -8,3 +8,6 @@ Neural Language Modeling assignment done for ANLP course (Monsoon 2023)
 
 # A2
 - ElMo
+
+# A3
+- Transformers from scratch
