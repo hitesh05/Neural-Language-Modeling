@@ -5,6 +5,7 @@ from torch import tensor
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import math
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, max_len: int = 5000):

@@ -65,14 +65,14 @@ class TransformerData(Dataset):
             indices = [self.en_vocab[word] for word in words]
             self.src_sents.append(indices)
             x = len(indices)
-            self.max_len = x-1 if x-1 > self.max_len else self.max_len
+            self.max_len = x if x > self.max_len else self.max_len
                 
         for sent in tqdm(self.fr_sents, desc='tokinsing fr sents'):
             words = [word.lower() for word in word_tokenize(sent, language='french')]
             indices = [self.fr_vocab[word] for word in words]
             self.tgt_sents.append(indices)
             x = len(indices)
-            self.max_len = x-1 if x-1> self.max_len else self.max_len
+            self.max_len = x if x > self.max_len else self.max_len
         
         # padding  
         self.src_sents = [sent + [self.en_vocab[self.specials[1]]]*(self.max_len - len(sent)) for sent in self.src_sents]
