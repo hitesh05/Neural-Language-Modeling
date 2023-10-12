@@ -4,12 +4,11 @@ import torch.nn.functional as F
 from torch import tensor
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
-from data import *
 import math
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, max_len: int = 5000):
-        super(PositionalEncoding).__init__()
+        super(PositionalEncoding, self).__init__()
 
         div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
@@ -17,14 +16,14 @@ class PositionalEncoding(nn.Module):
         
         pe[:, 0, 0::2] = torch.sin(position * div_term) # even pos are filled with sin
         pe[:, 0, 1::2] = torch.cos(position * div_term) # odd pos are filled with cos
-        self.register_buffer('pe', pe.unsqueeze(0)) # buffers are non-trainable params
+        self.register_buffer('pe', pe) # buffers are non-trainable params
 
     def forward(self, x):
         """
         Arguments:
             x: Tensor, shape ``[seq_len, batch_size, embedding_dim]``
         """
-        return x + self.pe[:, :x.size(1)]
+        return x + self.pe[:x.size(0)]
     
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model, num_heads):
@@ -114,7 +113,7 @@ class Encoder_Layer(nn.Module):
     
     def forward(self, x, mask):
         attn_output = self.self_attn_layer(x,x,x, mask)
-        x = self.norm1(x = self.dropout(attn_output))
+        x = self.norm1(x + self.dropout(attn_output))
         ffn_output = self.ffn(x)
         x = self.norm2(x + self.dropout(ffn_output))
         return x  
@@ -141,23 +140,23 @@ class Decoder_Layer(nn.Module):
         return x
     
 class Transformer(nn.Module):
-    def __init__(self, src_vocab_size, tgt_vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout):
+    def __init__(self, src_vocab_size, tgt_vocab_size, d_model, num_heads, num_layers, exp_factor, max_seq_length, dropout=0.1):
         super(Transformer, self).__init__()
         self.encoder_embedding = nn.Embedding(src_vocab_size, d_model)
         self.decoder_embedding = nn.Embedding(tgt_vocab_size, d_model)
         self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
 
-        self.encoder_layers = nn.ModuleList([Encoder_Layer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
-        self.decoder_layers = nn.ModuleList([Decoder_Layer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
+        self.encoder_layers = nn.ModuleList([Encoder_Layer(d_model, num_heads, exp_factor, dropout) for _ in range(num_layers)])
+        self.decoder_layers = nn.ModuleList([Decoder_Layer(d_model, num_heads, exp_factor, dropout) for _ in range(num_layers)])
 
         self.fc = nn.Linear(d_model, tgt_vocab_size)
         self.dropout = nn.Dropout(dropout)
 
     def generate_mask(self, src, tgt):
-        src_mask = (src != 0).unsqueeze(1).unsqueeze(2)
-        tgt_mask = (tgt != 0).unsqueeze(1).unsqueeze(3)
+        src_mask = (src != 0).unsqueeze(1).unsqueeze(2).to(device)
+        tgt_mask = (tgt != 0).unsqueeze(1).unsqueeze(3).to(device)
         seq_length = tgt.size(1)
-        nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()
+        nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool().to(device)
         tgt_mask = tgt_mask & nopeak_mask
         return src_mask, tgt_mask
 

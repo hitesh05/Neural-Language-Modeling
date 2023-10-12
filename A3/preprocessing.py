@@ -55,8 +55,7 @@ class TransformerData(Dataset):
         
         self.src_sents = []
         self.tgt_sents = []
-        self.en_max_len = -1
-        self.fr_max_len = -1
+        self.max_len = -1
         self.specials = ['<UNK>', '<PAD>']
         self.make_dataset()
         
@@ -66,20 +65,18 @@ class TransformerData(Dataset):
             indices = [self.en_vocab[word] for word in words]
             self.src_sents.append(indices)
             x = len(indices)
-            self.en_max_len = x-1 if x-1 > self.en_max_len else self.en_max_len
-        
-        # padding
-        self.src_sents = [sent + [self.en_vocab[self.specials[1]]]*(self.en_max_len - len(sent)) for sent in self.src_sents]
-        
+            self.max_len = x-1 if x-1 > self.max_len else self.max_len
+                
         for sent in tqdm(self.fr_sents, desc='tokinsing fr sents'):
             words = [word.lower() for word in word_tokenize(sent, language='french')]
             indices = [self.fr_vocab[word] for word in words]
             self.tgt_sents.append(indices)
             x = len(indices)
-            self.fr_max_len = x-1 if x-1> self.fr_max_len else self.fr_max_len
+            self.max_len = x-1 if x-1> self.max_len else self.max_len
         
         # padding  
-        self.tgt_sents = [sent + [self.fr_vocab[self.specials[1]]]*(self.fr_max_len - len(sent)) for sent in self.tgt_sents]
+        self.src_sents = [sent + [self.en_vocab[self.specials[1]]]*(self.max_len - len(sent)) for sent in self.src_sents]
+        self.tgt_sents = [sent + [self.fr_vocab[self.specials[1]]]*(self.max_len - len(sent)) for sent in self.tgt_sents]
         
     def __getitem__(self, index):
         return tensor(self.src_sents[index]).to(device), tensor(self.tgt_sents[index]).to(device)
