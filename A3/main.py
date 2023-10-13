@@ -11,7 +11,6 @@ from nltk.translate.bleu_score import corpus_bleu, sentence_bleu, SmoothingFunct
 from nltk.translate.meteor_score import meteor_score
 from preprocessing import Process_Dataset
 from preprocessing import TransformerData
-from preprocessing import get_embeddings
 from transformer import Transformer
 import argparse
 
@@ -92,9 +91,7 @@ def test_loop(model, data_loader, output_file, en_vocab, fr_vocab):
     # Calculate BLEU score for the entire corpus
     smoothing_function = SmoothingFunction().method7
     corpus_bleu_score = corpus_bleu(references, model_translations, smoothing_function=smoothing_function)
-    corpus_meteor_score = meteor_score(references_2, model_translations)
     print(f'BLEU Score for the entire corpus: {corpus_bleu_score:.4f}')
-    print(f'METEOR Score for the entire corpus: {corpus_meteor_score:.4f}')
     
     # Save translations and BLEU scores to a file
     save_translation_and_bleu(src_sentences, model_translations, bleu_scores, output_file)
@@ -147,12 +144,12 @@ if __name__=='__main__':
     else:
         print('evaluating model')
         model.load_state_dict(torch.load(f'models/model_{lr}_{batch_size}_{dropout}.pth'))
-        # print('evaluating train set')
-        # test_loop(model, train_loader, "out_files/train.txt", en_vocab, fr_vocab)
+        print('evaluating train set')
+        test_loop(model, train_loader, f"out_files/train_{lr}_{batch_size}_{dropout}.txt", en_vocab, fr_vocab)
         
         print('evaluating test set')
         en_test_file = 'transformers_data/test.en'
         fr_test_file = 'transformers_data/test.fr'
         test_data = TransformerData(en_vocab, fr_vocab, en_test_file, fr_test_file)
         test_loader = DataLoader(test_data, batch_size=batch_size)
-        test_loop(model, test_loader, "out_files/test.txt", en_vocab, fr_vocab)
+        test_loop(model, test_loader, f"out_files/test_{lr}_{batch_size}_{dropout}.txt", en_vocab, fr_vocab)
