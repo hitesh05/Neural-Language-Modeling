@@ -7,7 +7,8 @@ import torch.optim as optim
 from tqdm import tqdm
 import pandas as pd
 import nltk
-from nltk.translate.bleu_score import corpus_bleu, sentence_bleu
+from nltk.translate.bleu_score import corpus_bleu, sentence_bleu, SmoothingFunction
+from nltk.translate.meteor_score import meteor_score
 from preprocessing import Process_Dataset
 from preprocessing import TransformerData
 from preprocessing import get_embeddings
@@ -35,7 +36,8 @@ def train_loop(model, optimiser, criterion, num_epochs, train_loader):
         print(f'Epoch {epoch + 1}, Loss: {train_loss:.4f}')
         
 def calculate_bleu(reference, candidate):
-    return sentence_bleu([reference], candidate)
+    smoothing_function = SmoothingFunction().method7
+    return sentence_bleu([reference], candidate, smoothing_function=smoothing_function)
 
 def save_translation_and_bleu(src_sentences, model_translations, bleu_scores, output_file):
     with open(output_file, 'w', encoding='utf-8') as f:
@@ -44,32 +46,55 @@ def save_translation_and_bleu(src_sentences, model_translations, bleu_scores, ou
             f.write(f"Translation: {trans}\n")
             f.write(f"BLEU Score: {bleu:.4f}\n\n")
 
-def test_loop(model, data_loader, output_file, fr_vocab):
+def test_loop(model, data_loader, output_file, en_vocab, fr_vocab):
     model.eval()
     src_sentences = []
     model_translations = []
     bleu_scores = []
+    references = []
+    references_2 = []
     
     for batch in tqdm(data_loader, desc='evaluating transformer'):
         src, tgt = batch
         with torch.no_grad():            
             # Generate translations
-            model_translated = model(src, tgt)  # You need to implement a generate function in your model
+            model_translated = model(src, tgt)
             
             # Convert indices to tokens
-            model_translated_tokens = [fr_vocab.idx2word[idx.item()] for idx in model_translated.squeeze()]
-            src_tokens = [en_vocab.idx2word[idx.item()] for idx in src.squeeze()]
+            fr_itos = fr_vocab.get_itos()
+            en_itos = en_vocab.get_itos()
             
-            # Calculate BLEU scores for each sentence
-            for src_token, model_token in zip(src_tokens, model_translated_tokens):
-                src_sentences.append(' '.join(src_token))
-                model_translations.append(' '.join(model_token))
-                bleu_score = calculate_bleu(src_token, model_token)
+            for i in range(len(model_translated)):
+                en_pad_starts = -1
+                fr_pad_starts = -1
+                for id, idx in enumerate(src[i].tolist()):
+                    if en_itos[idx] == '<PAD>':
+                        en_pad_starts = id
+                        break
+                for id, idx in enumerate(tgt[i].tolist()):
+                    if fr_itos[idx] == '<PAD>':
+                        fr_pad_starts = id
+                        break
+                model_translated_tokens = [fr_itos[idx] for idx in model_translated[i].argmax(dim=1).tolist()][:fr_pad_starts]
+                model_translation = ' '.join(model_translated_tokens)
+                src_tokens = [en_itos[idx] for idx in src[i].tolist()][:en_pad_starts]
+                actual_translation = [fr_itos[idx] for idx in tgt[i].tolist()][:fr_pad_starts]
+                
+                references.append([actual_translation])
+                references_2.append([' '.join(actual_translation)])
+                
+                # Calculate BLEU scores for each sentence
+                src_sentences.append(' '.join(src_tokens))
+                model_translations.append(model_translation)
+                bleu_score = calculate_bleu(actual_translation, model_translated_tokens)
                 bleu_scores.append(bleu_score)
-    
+
     # Calculate BLEU score for the entire corpus
-    corpus_bleu_score = corpus_bleu([[src.split()] for src in src_sentences], [model_translations])
+    smoothing_function = SmoothingFunction().method7
+    corpus_bleu_score = corpus_bleu(references, model_translations, smoothing_function=smoothing_function)
+    corpus_meteor_score = meteor_score(references_2, model_translations)
     print(f'BLEU Score for the entire corpus: {corpus_bleu_score:.4f}')
+    print(f'METEOR Score for the entire corpus: {corpus_meteor_score:.4f}')
     
     # Save translations and BLEU scores to a file
     save_translation_and_bleu(src_sentences, model_translations, bleu_scores, output_file)
@@ -78,8 +103,8 @@ def test_loop(model, data_loader, output_file, fr_vocab):
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='transformer model')
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate for the model')
-    parser.add_argument('--heads', type=int, default=6, help='number of attn heads')
-    parser.add_argument('--bs', type=int, default=16, help='batch size')
+    parser.add_argument('--heads', type=int, default=8, help='number of attn heads')
+    parser.add_argument('--bs', type=int, default=8, help='batch size')
     parser.add_argument('--eps', type=int, default=10, help='number of epochs')
     parser.add_argument('--layers', type=int, default=6, help='number of encoder and decoder layers of the transformer')
     parser.add_argument('--dropout', type=float, default=0.1, help='dropout for the model')
@@ -97,10 +122,7 @@ if __name__=='__main__':
 
     train_data = TransformerData(en_vocab, fr_vocab, en_train_file, fr_train_file)
 
-    en_embeddings = get_embeddings(process_dataset.en_vocab)
-    fr_embeddings = get_embeddings(process_dataset.fr_vocab)
-
-    d_model = 300
+    d_model = 512
     exp_factor = 2
     num_heads = args.heads
     num_layers = args.layers
@@ -125,12 +147,12 @@ if __name__=='__main__':
     else:
         print('evaluating model')
         model.load_state_dict(torch.load(f'models/model_{lr}_{batch_size}_{dropout}.pth'))
-        print('evaluating train set')
-        test_loop(model, train_loader, "out_files/train.txt", fr_vocab)
+        # print('evaluating train set')
+        # test_loop(model, train_loader, "out_files/train.txt", en_vocab, fr_vocab)
         
         print('evaluating test set')
         en_test_file = 'transformers_data/test.en'
         fr_test_file = 'transformers_data/test.fr'
         test_data = TransformerData(en_vocab, fr_vocab, en_test_file, fr_test_file)
         test_loader = DataLoader(test_data, batch_size=batch_size)
-        test_loop(model, test_loader, "out_files/test.txt", fr_vocab)
+        test_loop(model, test_loader, "out_files/test.txt", en_vocab, fr_vocab)

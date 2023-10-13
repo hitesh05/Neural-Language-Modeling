@@ -83,19 +83,3 @@ class TransformerData(Dataset):
     
     def __len__(self):
         return len(self.src_sents)
-
-def get_embeddings(vocabulary):
-    def get_unk(v):
-        return torch.mean(v, dim=0)
-    em_name = '6B'
-    dim = 300
-    glove = vocab.GloVe(name=em_name, dim=dim)
-    unk_emb = get_unk(glove.vectors)
-    embeds = list()
-    for word in tqdm(vocabulary.get_itos(), desc='getting glove embeddings'):
-        if word in glove.itos:
-            embeds.append(glove[word])
-        else:
-            embeds.append(unk_emb)
-    embeds = torch.stack(embeds)
-    return embeds

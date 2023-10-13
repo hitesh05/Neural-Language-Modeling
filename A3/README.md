@@ -13,12 +13,11 @@
 python main.py --lr <learning_rate> --bs <batch_size> --eps <number_of_epochs> --dropout <dropout> --heads <atttn_heads> --layers <enc_dec_layers>
 ```
 
-- batch size: Only <= 16 size works for 1 GPU on Ada. Default is also set to 16.
-- number of epochs: 1 epoch takes about 13 minutes when you submit a batch job on Ada. Deafault is set to 10.
+- batch size: Only <= 8 size works for 1 GPU on Ada. Default is also set to 8.
+- number of epochs: 1 epoch takes about 20-25 minutes when you submit a batch job on Ada. Deafault is set to 10.
 - dropout: set accordingly, default = 0.1
-- attention heads: model dimension is 300, so set accordingly. default number is 6.
+- attention heads: model dimension is 512, so set accordingly. default number is 8. (same as the `attention is all you need` paper)
 - layers: default number is 6 as per the `attention is all you need` paper. feel free to inc/dec.
-
 
 ## Stuff for my reference
 ### Web links for TRANSformers
@@ -28,10 +27,13 @@ python main.py --lr <learning_rate> --bs <batch_size> --eps <number_of_epochs> -
 - [link 4](http://jalammar.github.io/illustrated-transformer/)
 
 ### Model params for which transformer is being trained currently on Ada
-1. lr = 1e-4, bs = 16, dropout = 0.1
-2. lr=5e-4, bs = 16, dropout = 0.1
-3. lr = 1e-3, bs = 16, dropout = 0.1
-4. lr = 1e-4, bs = 16, dropout = 0.15
+1. lr = 1e-5    bs = 8   dropout = 0.10
+2. lr = 5e-4    bs = 8   dropout = 0.10
+3. lr = 1e-4    bs = 8   dropout = 0.10
+4. lr = 1e-3    bs = 8   dropout = 0.10
+5. lr = 1e-4    bs = 8   dropout = 0.15
+6. lr = 1e-5    bs = 8   dropout = 0.15
+7. lr = 1e-4    bs = 8   dropout = 0.20
 
 # Theory 
 
