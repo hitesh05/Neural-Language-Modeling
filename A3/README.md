@@ -5,9 +5,22 @@
 # 2020115003
 
 ## OneDrive link for pth files:
-**ADD LINK!!!!!!!!**
+
+[Link](https://iiitaphyd-my.sharepoint.com/:f:/g/personal/hitesh_goel_research_iiit_ac_in/EjKbVhbp-89KujFQaKvhyrUBMSKIG2OkrIUmdoV4U_7N2A?e=0e37Ob)
+
+It has the following contents:
+
+- `models/`: All the `pth` files i.e. all the 11 transformers trained. They have been named according to the hyperparameters used.
+
+- `out_files`: Sentence wise bleu scores for the train and test set for each model.
+
+- `log_files`: Log files for all the 11 transformer models.
 
 ## Training the transformer:
+
+```bash
+cd src
+```
 
 ```bash
 python main.py --lr <learning_rate> --bs <batch_size> --eps <number_of_epochs> --dropout <dropout> --heads <atttn_heads> --layers <enc_dec_layers>
@@ -18,60 +31,6 @@ python main.py --lr <learning_rate> --bs <batch_size> --eps <number_of_epochs> -
 - dropout: set accordingly, default = 0.1
 - attention heads: model dimension is 512, so set accordingly. default number is 8. (same as the `attention is all you need` paper)
 - layers: default number is 6 as per the `attention is all you need` paper. feel free to inc/dec.
-
-## Stuff for my reference
-### Web links for TRANSformers
-- [link 1](https://www.kaggle.com/code/arunmohan003/transformer-from-scratch-using-pytorch)
-- [link 2](https://towardsdatascience.com/build-your-own-transformer-from-scratch-using-pytorch-84c850470dcb)
-- [link 3](https://towardsdatascience.com/7-things-you-didnt-know-about-the-transformer-a70d93ced6b2)
-- [link 4](http://jalammar.github.io/illustrated-transformer/)
-
-### Model params for which transformer is being trained currently on Ada
-*Varying learning rate*
-
-1. lr = 1e-5    bs = 8   dropout = 0.10 --> works
-2. lr = 5e-4    bs = 8   dropout = 0.10 --> does not work (lr too high)
-3. lr = 1e-4    bs = 8   dropout = 0.10 --> works
-4. lr = 1e-3    bs = 8   dropout = 0.10 --> does not work (lr too high)
-
-*Varying dropout*
-
-5. lr = 1e-4    bs = 8   dropout = 0.0
-6. lr = 1e-4    bs = 8   dropout = 0.15
-7. lr = 1e-4    bs = 8   dropout = 0.20
-
-*Try decreasing number of layers since train set is small*
-
-11. lr = 1e-4    bs = 8   dropout = 0.10     layers = 2
-
-**Yet to Train:**
-
-*Varying batch size*
-
-8. lr = 1e-4    bs = 4   dropout = 0.10
-9. lr = 1e-4    bs = 2   dropout = 0.10
-10. lr = 1e-4    bs = 1   dropout = 0.10
-
-### Documenting the results
-**Model 1**
-1. Best loss achieved: 3.0820
-2. Bleu score for the train corpus: 0.0885
-3. Bleu score for the test corpus: 0.0874
-
-**Model 2**
-1. Best loss achieved: 6.0218
-2. Bleu score for the train corpus: 0
-3. Bleu score for the test corpus: 0
-
-**Model 3**
-1. Best loss achieved: 0.6528
-2. Bleu score for the train corpus: 0.0983
-3. Bleu score for the test corpus: 0.0977
-
-**Model 4**
-1. Best loss achieved: 5.9934
-2. Bleu score for the train corpus: 0
-3. Bleu score for the test corpus: 0
 
 # Theory 
 
@@ -139,5 +98,137 @@ Here,
 In the above expression, you can see that even positions correspond to a sine function and odd positions correspond to cosine functions.
 
 ![Positional Encoding Visualisation](readme/theory/5.jpeg)
-![Positional Encoding Example](readme/theory/6.webp)
+![Positional Encoding Example](readme/theory/6.jpg)
 
+
+# Hyperparameter Finetuning and Analysis
+
+## 1. Varying the Learning Rate
+
+### Results Obtained:
+
+| Model | Learning Rate | Batch Size | Dropout | Layers | Best Loss | Bleu Score (Train) | Bleu Score (Test) |
+|-------|---------------|-----------|---------|--------|-----------|--------------------|-----------------|
+| 1     | 1e-5           | 8         | 0.10    | 6      | 3.0820    | 0.0805             | 0.0796          |
+| 2     | 5e-4           | 8         | 0.10    | 6      | 6.0218    | 0                  | 0               |
+| 3     | 1e-4           | 8         | 0.10    | 6      | 0.6528    | 0.0893             | 0.0877          |
+| 4     | 1e-3           | 8         | 0.10    | 6      | 5.9934    | 0                  | 0               |
+
+### Loss Plots for each model:
+
+![lr=1e-5](readme/loss_plots/loss_curve_lr=1e-5_bs=8_dropout=0.1.png)
+
+![lr=5e-4](readme/loss_plots/loss_curve_lr=5e-4_bs=8_dropout=0.1.png)
+
+![lr=1e-4](readme/loss_plots/loss_curve_lr=1e-4_bs=8_dropout=0.1.png)
+
+![lr=1e-3](readme/loss_plots/loss_curve_lr=1e-3_bs=8_dropout=0.1.png)
+
+### Bleu score plot:
+
+![varying lr](readme/bleu_plots/bleu_curve_lr.png)
+
+### What do we learn?
+
+- Model 1 and Model 3 with lr = [1e-5, 1e-4] show continuous decrease in loss.
+- Meanwhile the other 2 models with lr = [5e-4, 1e-3] have loss curves that increase/decrase after each epoch randomly.
+- This shows that *lr>1e-4 is harmful for training a large model* like the transformer. 
+- This could also be becuase of the small size of the training data. A high learning rate means that the loss does not converge well and we never reach the optimal minima.
+- *lr=1e-4 gives the best results* out of all the models.
+- lr=1e-5 performs slightly worse because the lr is probably too low and hence the function takes a *longer time to converge to the minima*, on the other hand, 1e-4 achieves the minima quicker. 
+
+
+## 2. Varying dropout
+
+### Results Obtained:
+
+| Model | Learning Rate | Batch Size | Dropout | Layers | Best Loss | Bleu Score (Train) | Bleu Score (Test) |
+|-------|---------------|-----------|---------|--------|-----------|--------------------|-----------------|
+| 1     | 1e-4           | 8         | 0.10    | 6      | 0.6528    | 0.0893             | 0.0877          |
+| 2     | 1e-4           | 8         | 0.00    | 6      | 0.3350    | 0.0883             | 0.0778          |
+| 3     | 1e-4           | 8         | 0.15    | 6      | 0.7927    | 0.0681             | 0.0675          |
+| 4     | 1e-4           | 8         | 0.20    | 6      | 1.0505    | 0.0680             | 0.0672          |
+
+### Loss plots for each model
+
+![dropout=0.10](readme/loss_plots/loss_curve_lr=1e-4_bs=8_dropout=0.1.png)
+
+![dropout=0.00](readme/loss_plots/loss_curve_lr=1e-4_bs=8_dropout=0.0.png)
+
+![dropout=0.15](readme/loss_plots/loss_curve_lr=1e-4_bs=8_dropout=0.15.png)
+
+![dropout=0.20](readme/loss_plots/loss_curve_lr=1e-4_bs=8_dropout=0.20.png)
+
+### Bleu score plot:
+
+![varying dropout](readme/bleu_plots/bleu_curve_dropout.png)
+
+### What do we learn?
+
+- *dropout=0.10 gives the best performance* followed by dropout=0.
+- Dropout is important because it *freezes some of the layers randomly while training and this gives us an ensemble of models* that helps the model train and predict better.
+- However, as we can see freezing too many layers is also harmful to the health of the model, possibly because it is not able to learn correctly.
+
+
+## 3. Varying batch size
+
+### Results Obtained:
+
+| Model | Learning Rate | Batch Size | Dropout | Layers | Best Loss | Bleu Score (Train) | Bleu Score (Test) |
+|-------|---------------|-----------|---------|--------|-----------|--------------------|-----------------|
+| 1     | 1e-4           | 8         | 0.10    | 6      | 0.6528    | 0.0893             | 0.0877          |
+| 2     | 1e-4           | 4         | 0.10    | 6      | 1.3721    | 0.0680             | 0.0673          |
+| 3     | 1e-4           | 2         | 0.10    | 6      | 1.6891    | 0.0629             | 0.0622          |
+| 4     | 1e-4           | 1         | 0.10    | 6      | Nan       | 0                  | 0               |
+
+
+### Bleu score plot:
+
+![varying batch size](readme/bleu_plots/bleu_curve_bs.png)
+
+### What do we learn?
+
+- Batch size >= 8 does not fit on Ada for 1 GPU.
+- The *performance of the model seems to increase as the batch size increases*.
+- Batch size=8 gives us the best performance since that is the max size we can fit on Ada.
+- Batch size=1 does not train at all.
+- Batch size = [4,2] also give decent performances, but they are much worse than bs=8 and also take a *longer time to train*.
+
+## 4. Varying number of layers
+
+### Results obtained:
+| Model | Learning Rate | Batch Size | Dropout | Layers | Best Loss | Bleu Score (Train) | Bleu Score (Test) |
+|-------|---------------|-----------|---------|--------|-----------|--------------------|-----------------|
+| 1     | 1e-4           | 8         | 0.10    | 6      | 0.6528    | 0.0893             | 0.0877          |
+| 2     | 1e-4           | 8         | 0.10    | 2      | 1.0723    | 0.0781             | 0.0776          |
+
+### Bleu score plot:
+
+![varying number of layers](readme/bleu_plots/bleu_curve_layers.png)
+
+### What do we learn?
+
+- Since the training set was small, the idea was to reduce the size of the model to see if it gives better performance. 
+- While the model with 2 layers takes *much less time to train*, the model with *6 encoder and decoder layers still performs better*.
+- Thus the standard architecture mentioned in the `Attention is all you need` paper outperforms the other model.
+
+## Overall best model obtained
+
+**The best model has the following parameters:**
+
+- lr = 1e-4    bs = 8   dropout = 0.10     layers = 6
+
+**The model obtained the following scores:**
+
+1. Best loss achieved: 0.6528
+2. Bleu score for the train corpus: 0.0893
+3. Bleu score for the test corpus: 0.0887
+
+- The analysis of the hyperparameters chosen has already been done in the previous sections. Loss curves have also been attached.
+- The bleu scores for the sentences are available in the *OneDrive Link* given at the start of the document.
+
+## References
+- [link 1](https://www.kaggle.com/code/arunmohan003/transformer-from-scratch-using-pytorch)
+- [link 2](https://towardsdatascience.com/build-your-own-transformer-from-scratch-using-pytorch-84c850470dcb)
+- [link 3](https://towardsdatascience.com/7-things-you-didnt-know-about-the-transformer-a70d93ced6b2)
+- [link 4](http://jalammar.github.io/illustrated-transformer/)
