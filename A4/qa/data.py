@@ -2,48 +2,50 @@ import json
 import pandas as pd
 from torch.utils.data import Dataset
 
-file = 'dataset/train.json'
-with open(file, 'r') as f:
-    data = json.load(f)['data']
 
-paragraphs = self.data[idx]['paragraphs']
-questions = [qa['question'] for para in paragraphs for qa in para['qas']]
-# class CSVDataset(Dataset):
-#     def __init__(self, json_file, tokenizer, max_length, subset_size=None):
-#         with open(json_file, 'r') as f:
-#             self.data = json.load(f)['data']
-#         if subset_size is not None:
-#             self.data = self.data[:subset_size]
-#         self.tokenizer = tokenizer
-#         self.max_length = max_length
+class CSVDataset(Dataset):
+    def __init__(self, filename, tokenizer, max_length , fraction = 0.1):
+        tokenizer.pad_token = tokenizer.eos_token
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+        self.inputs = []
+        self.answers = []
 
-#     def __len__(self):
-#         return len(self.data)
+        # Load and parse the dataset
+        with open(filename, 'r') as file:
+            data = json.load(file)
+        
+        num_articles = int(len(data['data'])*fraction)
+        data['data'] = data['data'][:num_articles]
+            
 
-#     def __getitem__(self, idx):
-#         paragraphs = self.data[idx]['paragraphs']
-#         questions = [qa['question'] for para in paragraphs for qa in para['qas']]
-#         answers = [qa['answers'][0]['text'] for para in paragraphs for qa in para['qas']]
+        for article in data['data']:
+            for paragraph in article['paragraphs']:
+                context = paragraph['context']
+                for qa in paragraph['qas']:
+                    question = qa['question']
+                    answer = qa['answers'][0]['text'] if not qa['is_impossible'] else '[NO ANSWER]'
 
-#         # Encode the inputs and targets
-#         question_encoding = self.tokenizer(questions,
-#                                            add_special_tokens=True,
-#                                            max_length=self.max_length,
-#                                            return_attention_mask=True,
-#                                            padding='max_length',
-#                                            truncation=True,
-#                                            return_tensors='pt')
+                    # Format the input
+                    input_text = f"Context: {context} Question: {question} Answer:"
+                    self.inputs.append(input_text)
+                    self.answers.append(answer)
 
-#         answer_encoding = self.tokenizer(answers,
-#                                          add_special_tokens=True,
-#                                          max_length=self.max_length,
-#                                          return_attention_mask=True,
-#                                          padding='max_length',
-#                                          truncation=True,
-#                                          return_tensors='pt')
+    def __len__(self):
+        return len(self.inputs)
 
-#         return {
-#             'input_ids': question_encoding['input_ids'].flatten(),
-#             'attention_mask': question_encoding['attention_mask'].flatten(),
-#             'labels': answer_encoding['input_ids'].flatten()
-#         }
+    def __getitem__(self, idx):
+        input_text = self.inputs[idx]
+        answer_text = self.answers[idx]
+        input_text = f"[QUESTION] {input_text} [ANSWER]"
+
+        # Encode the inputs and answers
+        input_encoding = self.tokenizer.encode_plus(input_text, add_special_tokens=True, return_tensors="pt", max_length=self.max_length, padding="max_length", truncation=True)
+        answer_encoding = self.tokenizer.encode_plus(answer_text, add_special_tokens=True, return_tensors="pt", max_length=self.max_length, padding="max_length", truncation=True)
+
+        # Return as a dictionary
+        return {
+            'input_ids': input_encoding['input_ids'].flatten(),
+            'attention_mask': input_encoding['attention_mask'].flatten(),
+            'labels': answer_encoding['input_ids'].flatten()
+        }

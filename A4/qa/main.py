@@ -137,7 +137,7 @@ if __name__ == '__main__':
     model = GPT2PromptTuningLM.from_pretrained(
         'gpt2',
         tokeniser,
-        prompt_str='[SUMMARISATION]'
+        prompt_str='[QA]'
     ).to(device)
     
     print('tokenising train file')
