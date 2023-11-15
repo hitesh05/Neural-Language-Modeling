@@ -86,9 +86,9 @@ def train_loop(model, optimiser, num_epochs, train_loader, dev_loader, lr_schedu
             else:
                 is_improved += 1
 
-            # if is_improved >= patience:
-            #     print(f'No improvement for {patience} consecutive epochs. Early stopping.')
-            #     break
+            if is_improved >= patience:
+                print(f'No improvement for {patience} consecutive epochs. Early stopping.')
+                break
     return model
 
 def test_loop(model, dataloader, tokenizer):

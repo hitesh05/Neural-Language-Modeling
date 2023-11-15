@@ -11,3 +11,7 @@ Neural Language Modeling assignment done for ANLP course (Monsoon 2023)
 
 # A3
 - Transformers from scratch
+
+# A4
+- Prompt Tuning
+    - Tasks: Summarisation, Question Answering, Machine Translation

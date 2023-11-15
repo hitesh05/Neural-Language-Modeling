@@ -4,6 +4,9 @@
 
 # 2020115003
 
+# Motive of the assignment
+Training transformers from scratch without the use of inbuilt pytorch implementations to better grasp the concepts.
+
 ## OneDrive link for pth files:
 
 [Link](https://iiitaphyd-my.sharepoint.com/:f:/g/personal/hitesh_goel_research_iiit_ac_in/EjKbVhbp-89KujFQaKvhyrUBMSKIG2OkrIUmdoV4U_7N2A?e=0e37Ob)
